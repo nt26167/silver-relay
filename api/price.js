@@ -21,10 +21,11 @@ export default async function handler(req, res) {
       });
     }
 
+    // live-rates API returns array
     if (!json || !json[0] || !json[0].Price) {
       return res.status(500).json({
-        error: "Price not found in result",
-        raw: json
+        error: "Price not found",
+        data: json
       });
     }
 
