@@ -1,36 +1,47 @@
 export default async function handler(req, res) {
   try {
-    const url = "https://api.live-rates.com/api/price?Key=demo&Symbol=XAGUSD";
-
-    const response = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" }
+    // ฟรี ไม่ต้องใช้ API key
+    const response = await fetch("https://data-asg.goldprice.org/dbXRates/USD", {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; NT-silver-bot/1.0)"
+      }
     });
 
-    const text = await response.text();
-    let json;
-
-    try {
-      json = JSON.parse(text);
-    } catch (err) {
+    if (!response.ok) {
+      const text = await response.text();
       return res.status(500).json({
-        error: "Invalid JSON",
-        raw: text
+        error: "UPSTREAM_ERROR",
+        status: response.status,
+        body: text.slice(0, 200)
       });
     }
 
-    if (!json || !json.Price) {
+    const json = await response.json();
+    const items = json.items || [];
+    const usd = items.find((it) => it.curr === "USD") || items[0];
+
+    const price = usd && !Number.isNaN(Number(usd.xagPrice))
+      ? Number(usd.xagPrice)
+      : null;
+
+    if (!price) {
       return res.status(500).json({
-        error: "No valid price",
-        data: json
+        error: "NO_XAG_PRICE",
+        data: usd
       });
     }
 
-    return res.status(200).json({ price: json.Price });
-
+    return res.status(200).json({
+      symbol: "XAGUSD",
+      price,                     // ราคา Silver/oz (USD)
+      source: "data-asg.goldprice.org",
+      date: json.date,
+      ts: json.ts
+    });
   } catch (err) {
     return res.status(500).json({
-      error: "FETCH ERROR",
-      message: err.message
+      error: "FETCH_ERROR",
+      message: String(err)
     });
   }
 }
